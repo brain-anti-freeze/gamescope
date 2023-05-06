@@ -108,7 +108,7 @@ if openvr_dep.found()
   src += 'vr_session.cpp'
 endif
 
-  executable(
+exe = executable(
     'gamescope',
     src,
     dependencies: [
@@ -120,3 +120,11 @@ endif
     ],
     install: true,
   )
+
+# Set CAP_SYS_NICE on install
+if cap_dep.found() and (not get_option('skip_setcap'))
+  setcap = find_program('setcap', '/usr/sbin/setcap', '/sbin/setcap', required : false)
+  if setcap.found()
+    meson.add_install_script('setcap.sh', setcap, get_option('bindir'), exe.name(), skip_if_destdir: true)
+  endif
+endif
