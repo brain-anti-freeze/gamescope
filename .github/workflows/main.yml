@@ -18,7 +18,7 @@ jobs:
             sdl2 vulkan-headers libx11 libxmu libxcomposite libxrender libxres \
             libxtst libxkbcommon libdrm libinput wayland-protocols \
             xorg-xwayland pipewire cmake
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
       - name: Build with gcc
