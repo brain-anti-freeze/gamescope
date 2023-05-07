@@ -14,7 +14,9 @@ wayland_server = dependency('wayland-server', version: '>=1.21')
 wayland_protos = dependency('wayland-protocols', version: '>=1.17')
 xkbcommon = dependency('xkbcommon')
 thread_dep = dependency('threads')
-cap_dep = dependency('libcap', required: false)
+cap_dep = dependency('libcap', required: get_option('install_setcap'))
+setcap = find_program('setcap', '/usr/sbin/setcap', '/sbin/setcap', \
+  required: get_option('install_setcap'))
 glm_dep = dependency('glm')
 sdl_dep = dependency('SDL2')
 stb_dep = dependency('stb')
@@ -122,9 +124,7 @@ exe = executable(
   )
 
 # Set CAP_SYS_NICE on install
-if cap_dep.found() and (not get_option('skip_setcap'))
-  setcap = find_program('setcap', '/usr/sbin/setcap', '/sbin/setcap', required : false)
-  if setcap.found()
-    meson.add_install_script('setcap.sh', setcap, get_option('bindir'), exe.name(), skip_if_destdir: true)
-  endif
+if get_option('install_setcap')
+  meson.add_install_script('setcap.sh', setcap, get_option('bindir'), \
+    exe.name(), skip_if_destdir: true)
 endif
