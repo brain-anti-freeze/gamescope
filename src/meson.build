@@ -108,6 +108,14 @@ if openvr_dep.found()
   src += 'vr_session.cpp'
 endif
 
+conf_data = configuration_data()
+conf_data.set('version', meson.project_version())
+configure_file(
+  input : 'version.hpp.in',
+  output : 'version.hpp',
+  configuration : conf_data
+)
+
   executable(
     'gamescope',
     src,

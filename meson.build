@@ -2,7 +2,8 @@ project(
   'gamescope',
   'c',
   'cpp',
-  meson_version: '>=0.58.0',
+  meson_version: '>=0.60.3',
+  version: run_command('git', 'describe',  '--tags').stdout().strip(),
   default_options: [
     'cpp_std=c++20',
     'warning_level=2',
