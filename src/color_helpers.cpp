@@ -216,7 +216,7 @@ inline void lerp_rgb(float* out, const float* a, const float* b, const float* c,
     lerp_rgb(out, v1, v2, x);
 }
 
-float ClampAndSanitize( float a, float min, float max )
+inline float ClampAndSanitize( float a, float min, float max )
 {
     return std::isfinite( a ) ? std::min(std::max(min, a), max) : min;
 }
@@ -225,7 +225,7 @@ float ClampAndSanitize( float a, float min, float max )
 // https://github.com/AcademySoftwareFoundation/OpenColorIO/ops/lut3d/Lut3DOpCPU.cpp
 // License available in their repo and in our LICENSE file.
 
-glm::vec3 ApplyLut3D_Trilinear( const lut3d_t & lut3d, const glm::vec3 & input )
+inline glm::vec3 ApplyLut3D_Trilinear( const lut3d_t & lut3d, const glm::vec3 & input )
 {
     const float dimMinusOne = float(lut3d.lutEdgeSize) - 1.f;
 
@@ -292,7 +292,7 @@ glm::vec3 ApplyLut3D_Trilinear( const lut3d_t & lut3d, const glm::vec3 & input )
     return out;
 }
 
-glm::vec3 ApplyLut3D_Tetrahedral( const lut3d_t & lut3d, const glm::vec3 & input )
+inline glm::vec3 ApplyLut3D_Tetrahedral( const lut3d_t & lut3d, const glm::vec3 & input )
 {
     const float dimMinusOne = float(lut3d.lutEdgeSize) - 1.f;
 
@@ -399,7 +399,7 @@ glm::vec3 ApplyLut3D_Tetrahedral( const lut3d_t & lut3d, const glm::vec3 & input
     return out;
 }
 
-glm::vec3 hsv_to_rgb( const glm::vec3 & hsv )
+inline glm::vec3 hsv_to_rgb( const glm::vec3 & hsv )
 {
     if ( fabsf( hsv.y ) < std::numeric_limits<float>::min() )
     {
@@ -430,7 +430,7 @@ glm::vec3 hsv_to_rgb( const glm::vec3 & hsv )
 }
 
 
-glm::vec3 rgb_to_hsv( const glm::vec3 & rgb )
+inline glm::vec3 rgb_to_hsv( const glm::vec3 & rgb )
 {
     float flMax = std::max( std::max( rgb.x, rgb.y ), rgb.z );
     float flMin = std::min( std::min( rgb.x, rgb.y ), rgb.z );
@@ -475,42 +475,46 @@ bool BOutOfGamut( const glm::vec3 & color )
     return ( color.x<0.f || color.x > 1.f || color.y<0.f || color.y > 1.f || color.z<0.f || color.z > 1.f );
 }
 
-glm::vec3 calcEOTFToLinear( const glm::vec3 & input, EOTF eotf, const tonemapping_t & tonemapping )
+template <typename T>
+inline T calcEOTFToLinear( const T & input, EOTF eotf, const tonemapping_t & tonemapping )
 {
     if ( eotf == EOTF_Gamma22 )
     {
-        return glm::pow( input, glm::vec3( 2.2f ) ) * tonemapping.g22_luminance;
+        return glm::pow( input, T( 2.2f ) ) * tonemapping.g22_luminance;
     }
     else if ( eotf == EOTF_PQ )
     {
-        return glm::vec3( pq_to_nits( input.r ),  pq_to_nits( input.g ), pq_to_nits( input.b ) );
+        return pq_to_nits( input );
     }
 
-    return glm::vec3(0);
+    return T(0);
 }
 
-glm::vec3 calcLinearToEOTF( const glm::vec3 & input, EOTF eotf, const tonemapping_t & tonemapping )
+template <typename T>
+inline T calcLinearToEOTF( const T & input, EOTF eotf, const tonemapping_t & tonemapping )
 {
     if ( eotf == EOTF_Gamma22 )
     {
-        glm::vec3 val = input;
+        T val = input;
         if ( tonemapping.g22_luminance > 0.f )
         {
-            val = glm::clamp( input / tonemapping.g22_luminance, glm::vec3( 0.f ), glm::vec3( 1.f ) );
+            val = glm::clamp( input / tonemapping.g22_luminance, T( 0.f ), T( 1.f ) );
         }
-        return glm::pow( val, glm::vec3( 1.f/2.2f ) );
+        return glm::pow( val, T( 1.f/2.2f ) );
     }
     else if ( eotf == EOTF_PQ )
     {
-        return glm::vec3( nits_to_pq( input.r ), nits_to_pq( input.g ), nits_to_pq( input.b ) );
+        return T( nits_to_pq(input) );
     }
 
-    return glm::vec3(0);
+    return T(0);
 }
 
 // input is from 0->1
 // TODO: use tone-mapping for white, black, contrast ratio
-glm::vec3 applyShaper( const glm::vec3 & input, EOTF source, EOTF dest, const tonemapping_t & tonemapping, float flGain, bool bInvert )
+
+template <typename T>
+inline T applyShaper( const T & input, EOTF source, EOTF dest, const tonemapping_t & tonemapping, float flGain, bool bInvert )
 {
     if ( source == dest || !tonemapping.bUseShaper )
     {
@@ -527,8 +531,8 @@ glm::vec3 applyShaper( const glm::vec3 & input, EOTF source, EOTF dest, const to
     return calcLinearToEOTF( flGain * calcEOTFToLinear( input, source, tonemapping ), dest, tonemapping );
 }
 
-void calcColorTransform( uint16_t * pRgbxData1d, int nLutSize1d,
-    uint16_t * pRgbxData3d, int nLutEdgeSize3d,
+void calcColorTransform( lut1d_t * pShaper, int nLutSize1d,
+	lut3d_t * pLut3d, int nLutEdgeSize3d,
 	const displaycolorimetry_t & source, EOTF sourceEOTF,
 	const displaycolorimetry_t & dest,  EOTF destEOTF,
     const colormapping_t & mapping, const nightmode_t & nightmode, const tonemapping_t & tonemapping,
@@ -545,23 +549,22 @@ void calcColorTransform( uint16_t * pRgbxData1d, int nLutSize1d,
     // The 3d lut should be considered a 'matched' pair where the transform is only complete
     // when applying both.  I.e., you can put ANY transform in here, and it should work.
 
-    if ( pRgbxData1d )
+    if ( pShaper )
     {
         float flScale = 1.f / ( (float) nLutSize1d - 1.f );
+        pShaper->data.resize( nLutSize1d );
 
         for ( int nVal=0; nVal<nLutSize1d; ++nVal )
         {
             glm::vec3 sourceColorEOTFEncoded = { nVal * flScale, nVal * flScale, nVal * flScale };
-            glm::vec3 shapedSourceColor = applyShaper( sourceColorEOTFEncoded, sourceEOTF, destEOTF, tonemapping, flGain, false );
-            pRgbxData1d[nVal * 4 + 0] = drm_quantize_lut_value( shapedSourceColor.x );
-            pRgbxData1d[nVal * 4 + 1] = drm_quantize_lut_value( shapedSourceColor.y );
-            pRgbxData1d[nVal * 4 + 2] = drm_quantize_lut_value( shapedSourceColor.z );
-            pRgbxData1d[nVal * 4 + 3] = 0;
+            pShaper->data[nVal] = applyShaper( sourceColorEOTFEncoded, sourceEOTF, destEOTF, tonemapping, flGain, false );
         }
     }
 
-    if ( pRgbxData3d )
+    if ( pLut3d )
     {
+        pLut3d->data.resize( nLutEdgeSize3d * nLutEdgeSize3d * nLutEdgeSize3d );
+
         float flScale = 1.f / ( (float) nLutEdgeSize3d - 1.f );
 
         // Precalc night mode scalars
@@ -570,15 +573,24 @@ void calcColorTransform( uint16_t * pRgbxData1d, int nLutSize1d,
         glm::vec3 nightModeMultHSV( nightmode.hue, clamp01( nightmode.saturation * nightmode.amount ), 1.f );
         glm::vec3 vNightModeMultLinear = glm::pow( hsv_to_rgb( nightModeMultHSV ), glm::vec3( 2.2f ) );
 
+        float sourceColorEOTFEncodedEdges[nLutEdgeSize3d];
+
+        // Precalculate source color EOTF encoded per-edge.
+        for ( int nIndex = 0; nIndex < nLutEdgeSize3d; ++nIndex )
+        {
+            float flShapedSource = nIndex * flScale;
+            float flSourceColorEOTFEncoded = applyShaper( flShapedSource, sourceEOTF, destEOTF, tonemapping, flGain, true );
+
+            sourceColorEOTFEncodedEdges[nIndex] = flSourceColorEOTFEncoded;
+        }
+
         for ( int nBlue=0; nBlue<nLutEdgeSize3d; ++nBlue )
         {
             for ( int nGreen=0; nGreen<nLutEdgeSize3d; ++nGreen )
             {
                 for ( int nRed=0; nRed<nLutEdgeSize3d; ++nRed )
                 {
-                    glm::vec3 shapedSourceColor = { nRed * flScale, nGreen * flScale, nBlue * flScale };
-                    glm::vec3 sourceColorEOTFEncoded = applyShaper( shapedSourceColor, sourceEOTF, destEOTF, tonemapping, flGain, true );
-
+                    glm::vec3 sourceColorEOTFEncoded = glm::vec3(sourceColorEOTFEncodedEdges[nRed], sourceColorEOTFEncodedEdges[nGreen], sourceColorEOTFEncodedEdges[nBlue]);
                     if ( pLook && !pLook->data.empty() )
                     {
                         sourceColorEOTFEncoded = ApplyLut3D_Tetrahedral( *pLook, sourceColorEOTFEncoded );
@@ -598,17 +610,13 @@ void calcColorTransform( uint16_t * pRgbxData1d, int nLutSize1d,
                     destColorLinear = glm::mix( destColorLinear, sourceColorLinear, amount );
 
                     // Apply night mode
-                    destColorLinear = vNightModeMultLinear * destColorLinear * glm::vec3( flGain );
+                    destColorLinear = vNightModeMultLinear * destColorLinear * flGain;
 
                     // Apply dest EOTF
                     glm::vec3 destColorEOTFEncoded = calcLinearToEOTF( destColorLinear, destEOTF, tonemapping );
 
                     // Write LUT
-                    int nLutIndex = nBlue * nLutEdgeSize3d * nLutEdgeSize3d + nGreen * nLutEdgeSize3d + nRed;
-                    pRgbxData3d[nLutIndex * 4 + 0] = drm_quantize_lut_value( destColorEOTFEncoded.x );
-                    pRgbxData3d[nLutIndex * 4 + 1] = drm_quantize_lut_value( destColorEOTFEncoded.y );
-                    pRgbxData3d[nLutIndex * 4 + 2] = drm_quantize_lut_value( destColorEOTFEncoded.z );
-                    pRgbxData3d[nLutIndex * 4 + 3] = 0;
+                    pLut3d->data[GetLut3DIndexRedFastRGB( nRed, nGreen, nBlue, nLutEdgeSize3d )] = destColorEOTFEncoded;
                 }
             }
         }

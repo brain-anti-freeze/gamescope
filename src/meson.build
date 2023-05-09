@@ -128,3 +128,6 @@ if get_option('install_setcap')
   meson.add_install_script('setcap.sh', setcap, get_option('bindir'), \
     exe.name(), skip_if_destdir: true)
 endif
+
+benchmark_dep = dependency('benchmark')
+executable('gamescope_color_microbench', ['color_bench.cpp', 'color_helpers.cpp'], dependencies:[benchmark_dep, glm_dep])
