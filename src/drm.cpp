@@ -396,7 +396,7 @@ struct saved_mode {
 struct drm_t {
 	bool bUseLiftoff;
 
-	int fd;
+	int fd = -1;
 
 	int preferred_width, preferred_height, preferred_refresh;
 
@@ -495,6 +495,8 @@ struct drm_color_ctm2 {
 
 bool g_bSupportsAsyncFlips = false;
 bool g_bSupportsSyncObjs = false;
+
+std::thread flip_handler_thread;
 
 extern gamescope::GamescopeModeGeneration g_eGamescopeModeGeneration;
 extern GamescopePanelOrientation g_DesiredInternalOrientation;
@@ -689,7 +691,7 @@ void flip_handler_thread_run(void)
 		.events = POLLIN,
 	};
 
-	while ( true )
+	while ( g_bRun )
 	{
 		int ret = poll( &pollfd, 1, -1 );
 		if ( ret < 0 ) {
@@ -1353,9 +1355,7 @@ void finish_drm(struct drm_t *drm)
 	drmModeAtomicFree(req);
 
 	free(drm->device_name);
-
-	// We can't close the DRM FD here, it might still be in use by the
-	// page-flip handler thread.
+	//close(drm->fd); // wlserver wants to do this
 }
 
 gamescope::OwningRc<gamescope::IBackendFb> drm_fbid_from_dmabuf( struct drm_t *drm, struct wlr_buffer *buf, struct wlr_dmabuf_attributes *dma_buf )
@@ -2987,6 +2987,15 @@ namespace gamescope
 			if ( g_DRM.pConnector )
 				WritePatchedEdid( g_DRM.pConnector->GetRawEDID(), g_DRM.pConnector->GetHDRInfo(), g_bRotated );
 			return true;
+		}
+
+		virtual void Finish() override
+		{
+			if ( flip_handler_thread.joinable() )
+				flip_handler_thread.join();
+
+			if ( g_DRM.fd != -1 ) 
+				finish_drm( &g_DRM );
 		}
 
         virtual std::span<const char *const> GetInstanceExtensions() const override

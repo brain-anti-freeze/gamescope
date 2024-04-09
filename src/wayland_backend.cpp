@@ -454,6 +454,7 @@ namespace gamescope
 
         virtual bool Init() override;
         virtual bool PostInit() override;
+        virtual void Finish() override;
         virtual std::span<const char *const> GetInstanceExtensions() const override;
         virtual std::span<const char *const> GetDeviceExtensions( VkPhysicalDevice pVkPhysicalDevice ) const override;
         virtual VkImageLayout GetPresentLayout() const override;
@@ -1242,6 +1243,10 @@ namespace gamescope
             this->SetRelativeMouseMode( true );
 
         return true;
+    }
+
+    void CWaylandBackend::Finish()
+    {
     }
 
     std::span<const char *const> CWaylandBackend::GetInstanceExtensions() const

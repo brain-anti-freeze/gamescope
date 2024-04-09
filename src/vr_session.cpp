@@ -387,6 +387,10 @@ namespace gamescope
             return true;
 		}
 
+        virtual void Finish() override
+		{
+		}
+
         virtual std::span<const char *const> GetInstanceExtensions() const override
 		{
             static std::vector<std::string> s_exts;

@@ -6045,6 +6045,7 @@ steamcompmgr_exit(void)
 	}
 
     //sdlwindow_shutdown();
+	GetBackend()->Finish();
 
     wlserver_lock();
     wlserver_force_shutdown();
